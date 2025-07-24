@@ -1,0 +1,50 @@
+# Compiled object files
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+
+# Executable files
+*.exe
+*.out
+*.app
+*.elf
+a.out
+*.dSYM/
+*.log
+# Debug files
+*.dSYM/
+*.stackdump
+
+# CMake build folders
+/build/
+cmake-build-*/
+
+# Visual Studio Code settings
+.vscode/
+
+# Qt Creator settings
+*.pro.user
+*.qbs.user
+*.user
+*.user.*
+
+# Other
+*.log
+*.tmp
+*.swp
+*~
+
+# Ignore generated files by make
+Makefile.in
