@@ -1,1 +1,1 @@
-g++ ocp_follow.cpp
+g++ OCP/OCP_vio.cpp -o a.out && ./a.out
