@@ -1,1 +1,1 @@
-g++ LSP/LSP_violated.cpp -o a.out && ./a.out
+g++ LSP/LSP_follow.cpp -o a.out && ./a.out
