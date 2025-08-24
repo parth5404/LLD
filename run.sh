@@ -1,1 +1,1 @@
-g++ LSP/LSP_follow.cpp -o a.out && ./a.out
+g++ Doc_editor/main.cpp -o a.out && ./a.out
