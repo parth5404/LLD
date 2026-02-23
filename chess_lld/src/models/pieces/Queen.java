@@ -2,14 +2,18 @@ package models.pieces;
 
 import enums.Color;
 import enums.PieceType;
+import stratergy.Horizontal;
+import stratergy.Vertical;
 
 public class Queen extends Piece {
-    public Queen(Color color){
+    public Queen(Color color) {
         super(color);
-        stratergyList.add();
+        stratergyList.add(new Vertical());
+        stratergyList.add(new Horizontal());
     }
+
     @Override
-    PieceType getType() {
+    public PieceType getType() {
         return PieceType.QUEEN;
     }
 }

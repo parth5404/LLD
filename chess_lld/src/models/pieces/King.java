@@ -2,14 +2,18 @@ package models.pieces;
 
 import enums.Color;
 import enums.PieceType;
+import stratergy.Castling;
+import stratergy.KingM;
 
 public class King extends Piece {
-    public King(Color color){
+    public King(Color color) {
         super(color);
-        stratergyList.add();
+        stratergyList.add(new Castling());
+        stratergyList.add(new KingM());
     }
+
     @Override
-    PieceType getType() {
+    public PieceType getType() {
         return PieceType.KING;
     }
 }

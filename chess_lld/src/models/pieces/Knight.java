@@ -2,14 +2,16 @@ package models.pieces;
 
 import enums.Color;
 import enums.PieceType;
+import stratergy.Lshape;
 
 public class Knight extends Piece {
-    public Knight(Color color){
+    public Knight(Color color) {
         super(color);
-        stratergyList.add();
+        stratergyList.add(new Lshape());
     }
+
     @Override
-    PieceType getType() {
+    public PieceType getType() {
         return PieceType.KNIGHT;
     }
 }

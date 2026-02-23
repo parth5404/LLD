@@ -2,14 +2,16 @@ package models.pieces;
 
 import enums.Color;
 import enums.PieceType;
+import stratergy.PawnM;
 
 public class Pawn extends Piece {
-    public Pawn(Color color){
+    public Pawn(Color color) {
         super(color);
-        stratergyList.add();
+        stratergyList.add(new PawnM());
     }
+
     @Override
-    PieceType getType() {
+    public PieceType getType() {
         return PieceType.PAWN;
     }
 }

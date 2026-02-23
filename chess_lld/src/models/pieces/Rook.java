@@ -2,14 +2,16 @@ package models.pieces;
 
 import enums.Color;
 import enums.PieceType;
+import stratergy.Horizontal;
 
 public class Rook extends Piece {
-    public Rook(Color color){
+    public Rook(Color color) {
         super(color);
-        stratergyList.add();
+        stratergyList.add(new Horizontal());
     }
+
     @Override
-    PieceType getType() {
+    public PieceType getType() {
         return PieceType.ROOK;
     }
 }
