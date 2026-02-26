@@ -16,14 +16,15 @@ public class InventoryM {
     @Setter
     private IReplenishment replenishment;
     private List<IInventoryObserver>observers;
-    private InventoryM(){
+    private InventoryM(IReplenishment stratergy){
         warehouses=new ArrayList<>();
         productFactory=new ProductFactory();
         observers=new ArrayList<>();
+        replenishment=stratergy;
     }
-    public synchronized InventoryM getInstance(){
+    public static synchronized InventoryM getInstance(IReplenishment strategy){
         if(instance==null){
-            instance=new InventoryM();
+            instance=new InventoryM(strategy);
         }
         return instance;
     }

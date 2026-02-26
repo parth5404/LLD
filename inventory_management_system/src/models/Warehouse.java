@@ -2,20 +2,28 @@ package models;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
+import java.util.HashMap;
 import java.util.Map;
 
-@AllArgsConstructor
+
 @Getter
 @Setter
 public class Warehouse {
     private int id;
     private String name;
     private String location;
-    private Map<String,Product> products;
 
-    private void addProduct(Product p,int quantity){
+    private Map<String,Product> products=new HashMap<>();
+    public Warehouse(int id, String name, String location) {
+        this.id = id;
+        this.name = name;
+        this.location = location;
+    }
+
+    public void addProduct(Product p,int quantity){
         Product rem=products.getOrDefault(p.getSku(),null);
         if(rem==null){
             products.put(p.getSku(),p);

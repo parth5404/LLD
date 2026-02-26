@@ -7,7 +7,7 @@ import java.util.List;
 public class AdminObserver implements IInventoryObserver{
     private String alertlvl;
     private List<String> admins;
-    private AdminObserver(String alertlvl,List<String> admins){
+    public AdminObserver(String alertlvl, List<String> admins){
         this.alertlvl=alertlvl;
         this.admins=admins;
     }
@@ -35,7 +35,6 @@ public class AdminObserver implements IInventoryObserver{
         for (String admin : admins) {
             System.out.println("Dashboard notification sent to admin: " + admin
                     + " - " + alertlvl + " level alert for " + product.getName());
-            // Actual implementation would update dashboard UI and push notifications
         }
     }
 
