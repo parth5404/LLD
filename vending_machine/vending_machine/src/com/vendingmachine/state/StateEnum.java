@@ -1,4 +1,6 @@
-public enum States {
+package com.vendingmachine.state;
+
+public enum StateEnum {
     SELECTION,
     PAYMENT,
     DISPENSE,
