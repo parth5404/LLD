@@ -3,11 +3,15 @@ package com.vendingmachine.state;
 import com.vendingmachine.machine.VendingMachine;
 
 public interface VendingMachineState {
-    boolean select();
+    boolean select(VendingMachine machine, int row, int col, int qty);
 
-    boolean pay(VendingMachine vendingMachine);
+    boolean checkout(VendingMachine machine);
+
+    boolean completePayment(VendingMachine machine);
+
+    void insertCash(VendingMachine machine, com.vendingmachine.model.Denomination denomination);
 
     boolean dispense(VendingMachine vendingMachine);
 
-    void cancelDispense();
+    void cancelDispense(VendingMachine machine);
 }
