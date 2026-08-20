@@ -24,4 +24,9 @@ public class TokenBucketConfig implements Config {
         return refillRate;
     }
 
+    @Override
+    public RateLimiterType getType() {
+        return RateLimiterType.TOKEN_BUCKET;
+    }
+
 }

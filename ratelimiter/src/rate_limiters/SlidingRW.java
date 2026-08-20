@@ -14,7 +14,7 @@ public class SlidingRW implements RateLimiter {
         SlidingRWState rwstate = (SlidingRWState) state;
         SlidingRWCfg rwcfg = (SlidingRWCfg) config;
         long now = System.currentTimeMillis();
-        while (!rwstate.getQueue().isEmpty() && now - rwstate.getQueue().peek() > rwcfg.getWindowLenInSec() / 1000) {
+        while (!rwstate.getQueue().isEmpty() && now - rwstate.getQueue().peek() > rwcfg.getWindowLenInMillis()) {
             rwstate.getQueue().poll();
         }
 

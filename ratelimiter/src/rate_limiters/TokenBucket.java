@@ -13,23 +13,20 @@ public class TokenBucket implements RateLimiter {
         TokenBucketState tokenBucketState = (TokenBucketState) state;
 
         long now = System.currentTimeMillis();
-        long elapsedMillis = now - tokenBucketState.getLastRefillTime();
-        double availableTokens = tokenBucketState.getAvailableTokens();
-
-        if (elapsedMillis > 0) {
-            availableTokens = Math.min(
-                    tokenBucketConfig.getMaxTokens(),
-                    availableTokens + (elapsedMillis * tokenBucketConfig.getRefillRate() / 1000.0));
+        long elapsed = now - tokenBucketState.getLastRefillTime();
+        double tokenVal = tokenBucketState.getAvailableTokens();
+        if (elapsed > 0) {
+            double token_add = tokenBucketConfig.getRefillRate() * elapsed / 1000.0;
+            tokenVal = Math.min(tokenVal + token_add, tokenBucketConfig.getMaxTokens());
             tokenBucketState.setLastRefillTime(now);
         }
-
-        if (availableTokens < 1.0) {
-            tokenBucketState.setAvailableTokens(availableTokens);
+        if (tokenVal < 1.0) {
+            tokenBucketState.setAvailableTokens(tokenVal);
             return false;
         }
-
-        tokenBucketState.setAvailableTokens(availableTokens - 1.0);
+        tokenBucketState.setAvailableTokens(tokenVal - 1.0);
         return true;
+
     }
 
 }

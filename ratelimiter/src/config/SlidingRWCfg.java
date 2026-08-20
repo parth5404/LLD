@@ -3,12 +3,16 @@ package config;
 public class SlidingRWCfg implements Config {
     private final String tier;
     private final int maxHits;
-    private final Long windowLenInSec ;
+    private final Long windowLenInMillis;
 
-    public SlidingRWCfg(String tier, int maxHits, Long windowLenInSec) {
+    public Long getWindowLenInMillis() {
+        return windowLenInMillis;
+    }
+
+    public SlidingRWCfg(String tier, int maxHits, Long windowLenInMillis) {
         this.tier = tier;
         this.maxHits = maxHits;
-        this.windowLenInSec = windowLenInSec;
+        this.windowLenInMillis = windowLenInMillis;
     }
 
     @Override
@@ -20,8 +24,9 @@ public class SlidingRWCfg implements Config {
         return maxHits;
     }
 
-    public Long getWindowLenInSec() {
-        return windowLenInSec;
+    @Override
+    public RateLimiterType getType() {
+        return RateLimiterType.SLIDING_WINDOW;
     }
 
 }
