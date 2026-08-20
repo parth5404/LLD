@@ -1,17 +1,30 @@
 package rate_limiters;
 
 import config.Config;
+import config.RateLimiterType;
 import config.State;
 import config.TokenBucketConfig;
 import config.TokenBucketState;
 
-public class TokenBucket implements RateLimiter {
+public class TokenBucket implements RateLimiter<TokenBucketConfig, TokenBucketState> {
 
     @Override
-    public boolean evaluate(Config config, State state) {
-        TokenBucketConfig tokenBucketConfig = (TokenBucketConfig) config;
-        TokenBucketState tokenBucketState = (TokenBucketState) state;
+    public RateLimiterType getType() {
+        return RateLimiterType.TOKEN_BUCKET;
+    }
 
+    @Override
+    public Class<TokenBucketConfig> getConfigClass() {
+        return TokenBucketConfig.class;
+    }
+
+    @Override
+    public Class<TokenBucketState> getStateClass() {
+        return TokenBucketState.class;
+    }
+
+    @Override
+    public boolean evaluate(TokenBucketConfig tokenBucketConfig, TokenBucketState tokenBucketState) {
         long now = System.currentTimeMillis();
         long elapsed = now - tokenBucketState.getLastRefillTime();
         double tokenVal = tokenBucketState.getAvailableTokens();
