@@ -1,234 +1,254 @@
-## Getting Started
+# 🚦 Rate Limiter — LLD Project
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+## 📁 Directory Structure (Folder ka Map)
 
-## Folder Structure
-
-The workspace contains two folders by default, where:
-
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
-
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
-
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
-
-## Dependency Management
-
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
-
-## Current Architecture
-
-This project implements an in-memory rate limiter with two rate limiting algorithms:
-
-- Token Bucket
-- Sliding Rolling Window
-
-### High Level Flow
-
-```text
-Client / App
-    |
-    v
-RateLimiterSvc
-    |
-    |-- fetches user config from ConfigRepo
-    |-- fetches user state from StateRepo
-    |
-    v
-RateLimiter implementation
-    |
-    |-- TokenBucket
-    |-- SlidingRW
-    |
-    v
-returns allowed / blocked
+```
+ratelimiter/
+├── src/
+│   ├── App.java                        ← Entry point, demo + concurrency test
+│   │
+│   ├── config/                         ← Saare "data holder" classes yahan hain
+│   │   ├── Config.java                 ← Interface: har config ka blueprint
+│   │   ├── State.java                  ← Interface: har state ka blueprint
+│   │   ├── RateLimiterType.java        ← Enum: TOKEN_BUCKET, SLIDING_WINDOW
+│   │   │
+│   │   ├── TokenBucketConfig.java      ← Token Bucket ka config (maxTokens, refillRate)
+│   │   ├── TokenBucketState.java       ← Token Bucket ka state (currentTokens, lastRefillTime)
+│   │   │
+│   │   ├── SlidingRWCfg.java           ← Sliding Window ka config (maxHits, windowLen)
+│   │   └── SlidingRWState.java         ← Sliding Window ka state (timestamp queue)
+│   │
+│   ├── rate_limiters/                  ← Actual algorithms yahan hain
+│   │   ├── RateLimiter.java            ← Generic interface (Strategy Pattern)
+│   │   ├── TokenBucket.java            ← Token Bucket algorithm
+│   │   └── SlidingRW.java              ← Sliding Window algorithm
+│   │
+│   ├── repo/                           ← Storage layer (Repository Pattern)
+│   │   ├── StateRepo.java              ← Interface: state save/get karo
+│   │   ├── ConfigRepo.java             ← Config store (userId → Config)
+│   │   ├── InMemoState.java            ← In-Memory state implementation
+│   │   └── UserLockManager.java        ← Per-user lock deta hai (concurrency ke liye)
+│   │
+│   └── service/
+│       └── RateLimiterSvc.java         ← Main service: isAllowed(userId) yahan call hota hai
+│
+├── lib/                                ← External jars (agar koi dependency ho)
+├── bin/                                ← Compiled .class files
+└── README.md                           ← Yeh file! 🙂
 ```
 
-### Components
+---
 
-#### App
+## 🧠 System Design — Kya karta hai yeh system?
 
-`App` is the demo entry point. It creates the config repository, state repository, and `RateLimiterSvc`, then calls `isAllowed(userId)`.
+Ek user ka request aaya → `isAllowed(userId)` call hota hai → system check karta hai ki is user ne allowed limit se zyada requests toh nahi kiye → `true` ya `false` return karta hai.
 
-#### RateLimiterSvc
-
-`RateLimiterSvc` is the orchestration layer. For a given `userId`, it:
-
-1. Gets the lock for that user from `UserLockManager`.
-2. Reads the user's `State` from `StateRepo`.
-3. Reads the user's `Config` from `ConfigRepo`.
-4. Finds the matching limiter from the strategy registry.
-5. Delegates the decision to the selected rate limiter implementation.
-
-Current dispatch logic:
-
-```text
-TOKEN_BUCKET    -> TokenBucket strategy
-SLIDING_WINDOW  -> SlidingRW strategy
+**Flow:**
+```
+Request → RateLimiterSvc.isAllowed(userId)
+             ↓
+    Lock lo us user ke liye (per-user lock)
+             ↓
+    StateRepo se State nikalo
+    ConfigRepo se Config nikalo
+             ↓
+    Sahi RateLimiter dhundho (EnumMap se)
+             ↓
+    evaluate(config, state) call karo
+             ↓
+    true/false return karo
 ```
 
-#### ConfigRepo
+---
 
-`ConfigRepo` stores rate limit configuration in memory using a `ConcurrentHashMap`.
+## ✅ KYA SAHI HAI (Interview mein ye points clearly bolna)
 
-Current key:
+### 1. ✅ Strategy Pattern — Algorithms ko swap karna easy hai
+`RateLimiter<C, S>` ek generic interface hai. `TokenBucket` aur `SlidingRW` dono isko implement karte hain.
+Naya algorithm (jaise `LeakyBucket`) add karna hai? Sirf nayi class banao aur register karo. Purana code chhona bhi mat.
 
-```text
-userId -> Config
+```
+RateLimiter (interface)
+    ├── TokenBucket
+    └── SlidingRW
+         └── (LeakyBucket add karna easy hai)
 ```
 
-Example configs:
+### 2. ✅ Open-Closed Principle (OCP) — Switch-case hataa diya, EnumMap lagaya
+`RateLimiterSvc` mein `switch` nahi hai. Ek `Map<RateLimiterType, RateLimiter>` hai.
+Naya limiter add karo → `register(new LeakyBucket())` — bas itna kaam.
 
-- `TokenBucketConfig`
-- `SlidingRWCfg`
+### 3. ✅ Per-User Locking — Thread Safety hai!
+`UserLockManager` mein har user ka apna alag `Object` lock hai.
+`synchronized(lock)` se ek user ke liye ek hi thread ek time pe kaam karta hai.
+**Bonus:** Alag users ke requests ek dusre ko block nahi karte — bahut smart!
 
-#### StateRepo / InMemoState
-
-`StateRepo` defines methods to get and save user state.
-
-`InMemoState` is the in-memory implementation using a `ConcurrentHashMap`.
-
-Current key:
-
-```text
-userId -> State
+```java
+Object lock = lockManager.getLock(userId);
+synchronized (lock) {
+    // sirf is user ke liye critical section
+}
 ```
 
-Example states:
+### 4. ✅ Null Check aur Graceful Degradation
+Agar user ka config ya state nahi mila, toh `false` return karo (allow mat karo).
+`userId` blank ya null hai toh `IllegalArgumentException` throw karo.
+Ye production-ready behavior hai.
 
-- `TokenBucketState`
-- `SlidingRWState`
+### 5. ✅ Generic Type Safety — ClassCastException nahi aayega
+`RateLimiter<C, S>` interface ke saath `getConfigClass()` aur `getStateClass()` methods hain.
+`RateLimiterSvc` runtime pe type validate karta hai before casting.
+Galat config-state combo doge toh clear error milega, silent bug nahi.
 
-#### UserLockManager
+### 6. ✅ Repository Pattern — Storage interchangeable hai
+`StateRepo` ek interface hai. `InMemoState` iska in-memory implementation hai.
+Kal Redis-backed implementation banana ho toh sirf nayi class banao, baaki code same.
 
-`UserLockManager` provides one lock object per user.
+### 7. ✅ Concurrency Test in App.java — Ye bahut achha touch hai!
+`CountDownLatch` se 20 threads ek saath fire kiye, check kiya ki exactly 5 hi allowed hue.
+Ye dikhata hai ki tumhe concurrency ka practical knowledge hai.
 
-This keeps mutations atomic for the same user's rate-limit state while still allowing different users to be evaluated in parallel.
+---
 
-```text
-userA request 1 and userA request 2 -> same lock -> sequential
-userA request and userB request     -> different locks -> parallel
+## ❌ KYA GALAT HAI / IMPROVEMENT CHAHIYE (Interview ke weak points)
+
+### ❌ 1. `UserLockManager` ki placement galat hai
+`UserLockManager` `repo` package mein hai — lekin yeh koi data store nahi hai, yeh ek infrastructure/utility component hai.
+**Interview mein puchha jaayega:** "Ye `repo` mein kyun hai?"
+**Fix:** Ise `service` package mein rakho, ya alag `util` ya `infra` package banao.
+
+### ❌ 2. `ConfigRepo` ek interface nahi hai — directly implementation hai
+`StateRepo` ek interface hai ✅ lekin `ConfigRepo` directly ek concrete class hai ❌.
+Agar kal config database se aane lage toh `RateLimiterSvc` ka constructor todna padega.
+
+**Fix:**
+```java
+// Ye interface banao:
+public interface ConfigRepo {
+    Config getConfig(String userId);
+    void setConfig(String userId, Config config);
+}
+// Aur rename karo concrete class ko:
+public class InMemoryConfigRepo implements ConfigRepo { ... }
 ```
 
-#### RateLimiter
+### ❌ 3. `configStore` aur `stateStore` mein `public final` kyun?
+`InMemoState.java` mein:
+```java
+public final Map<String, State> stateStore = new ConcurrentHashMap<>();
+```
+Yeh `public` hai — matlab koi bhi bahar se directly map ko manipulate kar sakta hai, bina `getState()` ya `saveState()` use kiye!
+**Fix:** `private` karo.
 
-`RateLimiter` is the common interface for all rate limiting algorithms.
+### ❌ 4. `SlidingRWState` mein constructor `Deque` leta hai, lekin field `Queue` hai
+```java
+// Constructor:
+public SlidingRWState(Deque<Long> dq) { this.queue = dq; }
 
-Each implementation takes:
+// Field:
+private final Queue<Long> queue;
+```
+Ye thoda confusing hai — agar hum `Deque` de rahe hain toh field bhi `Deque` hona chahiye.
+`Deque` zyada powerful hai (`peekFirst`, `pollFirst`) aur sliding window mein actually `Deque` hi chahiye hota hai.
 
-- a `Config`
-- a `State`
+### ❌ 5. State aur Config ek hi package mein hain — aur naam bhi inconsistent hain
+`SlidingRWState`, `TokenBucketState` — ye config package mein hain, lekin "state" alag concept hai.
+**Interview mein puchha jaayega:** "State aur Config ek hi package mein kyun?"
 
-and returns:
-
-- `true` if the request is allowed
-- `false` if the request is blocked
-
-### Token Bucket Architecture
-
-Classes involved:
-
-- `TokenBucketConfig`
-- `TokenBucketState`
-- `TokenBucket`
-
-`TokenBucketConfig` stores:
-
-- tier name
-- maximum tokens
-- refill rate
-
-`TokenBucketState` stores:
-
-- currently available tokens
-- last refill timestamp
-
-Decision flow:
-
-```text
-calculate elapsed time since last refill
-    |
-    v
-add tokens based on refill rate
-    |
-    v
-cap tokens at maxTokens
-    |
-    v
-if tokens >= 1:
-    consume 1 token and allow
-else:
-    block
+**Better structure:**
+```
+config/
+    TokenBucketConfig.java
+    SlidingWindowConfig.java    ← "Cfg" abbreviation avoid karo
+state/
+    TokenBucketState.java
+    SlidingWindowState.java
 ```
 
-### Sliding Rolling Window Architecture
+### ❌ 6. Naming Convention Inconsistency — Ye interview mein notice hoti hai
 
-Classes involved:
+| Class | Problem |
+|-------|---------|
+| `SlidingRWCfg` | "Cfg" abbreviation hai, baaki sab full naam use karte hain |
+| `SlidingRW` | "RW" ka matlab "Rolling Window"? Clear nahi hai |
+| `InMemoState` | "InMemory" full likhna chahiye |
 
-- `SlidingRWCfg`
-- `SlidingRWState`
-- `SlidingRW`
+**Better names:**
+- `SlidingRWCfg` → `SlidingWindowConfig`
+- `SlidingRW` → `SlidingWindowLimiter`
+- `InMemoState` → `InMemoryStateRepo`
 
-`SlidingRWCfg` stores:
+### ❌ 7. `stateRepo.saveState()` kabhi call nahi hota service mein
+`RateLimiterSvc` state read karta hai, algorithm run karta hai (jo state object ko mutate karta hai), lekin `saveState()` kabhi call nahi karta.
 
-- tier name
-- maximum hits allowed
-- window length in milliseconds
+In-memory mein yeh **accidentally** kaam karta hai (object reference ke wajah se) — lekin yeh **wrong pattern hai**.
+Agar kal Redis ya DB backend use karo toh state silently save nahi hogi!
 
-`SlidingRWState` stores:
-
-- queue of request timestamps
-
-Decision flow:
-
-```text
-remove timestamps older than the configured window
-    |
-    v
-check current queue size
-    |
-    v
-if queue size < maxHits:
-    add current timestamp and allow
-else:
-    block
+**Fix:**
+```java
+boolean result = evaluate(limiter, config, state);
+stateRepo.saveState(userId, state);  // ← yeh line zaroor chahiye
+return result;
 ```
 
-### Current Data Model
+### ❌ 8. `UserLockManager` mein memory leak ka risk hai
+`locks.computeIfAbsent(userId, ...)` — ek baar lock bana, woh kabhi remove nahi hota.
+Agar millions of unique users aaye toh memory full ho jaayegi!
 
-```text
-Config
-    |
-    |-- TokenBucketConfig
-    |-- SlidingRWCfg
+**Fix:** TTL-based eviction use karo (`Caffeine` cache), ya periodic cleanup karo.
 
-State
-    |
-    |-- TokenBucketState
-    |-- SlidingRWState
+---
 
-RateLimiter
-    |
-    |-- TokenBucket
-    |-- SlidingRW
+## 📊 Summary Table — Ek Nazar Mein
+
+| Area | Status | Note |
+|------|--------|------|
+| Strategy Pattern | ✅ Excellent | Generic interface, easily extensible |
+| OCP (Open-Closed) | ✅ Excellent | EnumMap + register() pattern |
+| Thread Safety | ✅ Good | Per-user locking — smart approach |
+| Null Handling | ✅ Good | Graceful degradation |
+| Type Safety | ✅ Good | Runtime type checking before cast |
+| Repository Pattern | ⚠️ Partial | ConfigRepo interface nahi hai |
+| State Persistence | ❌ Bug | saveState() call missing in service |
+| Package Structure | ⚠️ Messy | State + Config same package, UserLockManager misplaced |
+| Naming Convention | ⚠️ Inconsistent | Cfg vs Config, RW vs Window, InMemo vs InMemory |
+| Encapsulation | ❌ Weak | public fields in repo implementations |
+| Memory Management | ⚠️ Risk | UserLockManager locks never evicted |
+
+---
+
+## 🎯 Interview Mein Yeh Questions Puchhe Jaate Hain
+
+1. **"Naya algorithm kaise add karoge?"**
+   → `RateLimiter<C,S>` implement karo, `register()` se add karo — OCP explain karo.
+
+2. **"Distributed system mein kaise kaam karega?"**
+   → `UserLockManager` ko distributed lock (Redis Redlock) se replace karein, `StateRepo` ko Redis-backed banao.
+
+3. **"Ek user ke 1000 concurrent requests aaye toh?"**
+   → Per-user lock hai, sirf ek thread at a time process hogi, baaki queue mein rahenge.
+
+4. **"Memory leak kab hoga?"**
+   → `UserLockManager` mein locks kabhi remove nahi hote. Inactive users ke locks memory mein rahenge. Fix: `WeakReference` ya TTL-based eviction (Caffeine cache).
+
+5. **"saveState() kyun nahi call kiya?"**
+   → In-memory mein accidentally kaam karta hai, lekin DB/Redis backend mein break ho jaata. Ye ek bug hai.
+
+6. **"Token Bucket aur Sliding Window mein difference kya hai?"**
+   → Token Bucket burst traffic allow karta hai (refill rate se). Sliding Window har timestamp track karta hai, zyada accurate hai lekin memory zyada use karta hai.
+
+---
+
+## 🚀 Quick Run
+
+```bash
+# Compile karo
+javac -d bin src/**/*.java src/*.java
+
+# Run karo
+java -cp bin App
 ```
 
-### Current Storage
+---
 
-All storage is in memory:
-
-```text
-ConfigRepo.configStore: ConcurrentHashMap<String, Config>
-InMemoState.stateStore: ConcurrentHashMap<String, State>
-UserLockManager.locks: ConcurrentHashMap<String, Object>
-```
-
-There is no persistent database or distributed cache in the current architecture.
-
-### Current Limitations
-
-- Config and state must already exist for a user before calling `isAllowed`.
-- State initialization is not handled inside `RateLimiterSvc`.
-- Mutable state updates are atomic per user inside a single JVM.
-- The implementation is single-process only and does not support distributed rate limiting.
+*README written with love in Hinglish — for maximum clarity and minimum confusion!*
