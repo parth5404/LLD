@@ -1,7 +1,7 @@
 package models;
 
-import java.util.Collections;
-import java.util.PriorityQueue;
+import java.util.Comparator;
+import java.util.TreeSet;
 
 import enums.ElevatorDir;
 
@@ -11,23 +11,31 @@ public class Elevator {
     private ElevatorDir currDir;
     private int currFLoor;
     private int targetFloor;
-    private PriorityQueue<Integer> upQueue;
 
-    public PriorityQueue<Integer> getUpQueue() {
-        return upQueue;
-    }
+    // Pending stops while heading up, ordered so the NEXT stop (lowest floor above
+    // current) is always first — classic LOOK-algorithm per-elevator set.
+    // TreeSet, not PriorityQueue: a floor pressed twice is still ONE stop. A PQ
+    // would keep both copies and the second one, left behind after the first is
+    // served, would pin the elevator at the end of the shaft forever.
+    private TreeSet<Integer> upQueue;
 
-    private PriorityQueue<Integer> downQueue;
-
-    public PriorityQueue<Integer> getDownQueue() {
-        return downQueue;
-    }
+    // Pending stops while heading down — reverse order, so the next stop (highest
+    // floor below current) is first.
+    private TreeSet<Integer> downQueue;
 
     public Elevator(int id) {
         this.id = id;
         this.currDir = ElevatorDir.EIDLE;
-        this.upQueue = new PriorityQueue<>();
-        this.downQueue = new PriorityQueue<>(Collections.reverseOrder());
+        this.upQueue = new TreeSet<>();
+        this.downQueue = new TreeSet<>(Comparator.reverseOrder());
+    }
+
+    public TreeSet<Integer> getUpQueue() {
+        return upQueue;
+    }
+
+    public TreeSet<Integer> getDownQueue() {
+        return downQueue;
     }
 
     public int getId() {
