@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# usage: ./ckpt "requirements done"   -> appends "[+MM:SS] requirements done" to timeline.log
+DIR="$(cd "$(dirname "$0")" && pwd)"
+START=$(cat "$DIR/start_epoch")
+NOW=$(date +%s); EL=$((NOW-START))
+printf '[+%02d:%02d] %s\n' $((EL/60)) $((EL%60)) "$*" | tee -a "$DIR/timeline.log"
